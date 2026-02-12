@@ -4,12 +4,40 @@ name: Python CI
 on: ["push"]
 
 jobs:
+  build-venv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Restore cached virtualenv
+        id: restore-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ./venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
+      - name: Build venv
+        run: |
+          python -m venv ./venv
+          ./venv/bin/python -m pip install .
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+      - name: Cache virtualenv
+        uses: actions/cache/save@v3
+        with:
+          path: ./venv
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+
   test-unit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Install requirements
-        run: pip install .
+      - name: Restore cached virtualenv
+        uses: actions/cache/restore@v3
+        with:
+          path: ./venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
+      - name: Install package
+        run: ./venv/bin/python -m pip install .
       - name: Run tests
-        run: python -m unittest -v
+        run: ./venv/bin/python -m unittest -v
