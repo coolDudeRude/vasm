@@ -1,0 +1,15 @@
+# Github CI from: https://devsjc.github.io/blog/20240627-the-complete-guide-to-pyproject-toml/
+
+name: Python CI
+on: ["push"]
+
+jobs:
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install requirements
+        run: pip install .
+      - name: Run tests
+        run: python -m unittest
