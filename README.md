@@ -21,7 +21,7 @@ pip install .
 ```
 
 > [!NOTE]
-> To use `xasm` in a python venv, setup a venv with `python -m venv .venv` activate it. Then run the above command from the venv.
+> To use `vasm` in a python venv, setup a venv with `python -m venv .venv` activate it. Then run the above command from the venv.
 
 ## Development
 
