@@ -1,16 +1,32 @@
-# xSVM Assembler
+# StackVM Xonotic Assembler
 
-## Setup
+This project implements a simple assembler for [stackvm-xonotic](https://github.com/coolDudeRude/stackvm-xonotic).
 
-A python virtual environment with [parsy](https://github.com/python-parsy/parsy) is required.
+## Installation
+
+### From Source
+
+Clone this repo:
+
 ```
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/coolDudeRude/vasm
 ```
 
-## Usage
-Run `fasm.py` with `--help` flag to see usage information.
+#### System Wide
+
+To install `vasm` system wide, simply install using:
+
 ```
-./fasm.py --help
+pip install .
+```
+
+> [!NOTE]
+> To use `xasm` in a python venv, setup a venv with `python -m venv .venv` activate it. Then run the above command from the venv.
+
+## Development
+
+For modifying source code and testing changes, install `vasm` using:
+
+```
+pip install --editable .
 ```

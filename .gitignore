@@ -1,3 +1,6 @@
 __pycache__
 *.cfg
 .venv
+dist/
+build/
+*.egg-info

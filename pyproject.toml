@@ -1,0 +1,35 @@
+[project]
+name = "vasm"
+description = "Assembler for stackvm-xonotic"
+readme = "README.md"
+authors = [{ name = "Jian" }]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+# Since parsy 2.1 supports python 3.8 and above.
+requires-python = ">=3.8"
+dependencies = ["parsy==2.1"]
+dynamic = ["version"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Environment :: Console",
+  "Topic :: Software Development :: Assemblers",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/coolDudeRude/vasm"
+"Bug Tracker" = "https://github.com/coolDudeRude/vasm/issues"
+
+[project.scripts]
+vasm = "vasm.__main__:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.hatch.version]
+source = "code"
+path = "vasm/__version__.py"
+
+[tool.setuptools.dynamic]
+version = { attr = "vasm.__version__.__version__" }

@@ -1,5 +1,5 @@
 # Assmebler
-AS=../fasm.py
+AS=vasm
 AFLAGS=
 
 factorial.cfg: factorial.s
