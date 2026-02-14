@@ -31,9 +31,10 @@ class TestParser(unittest.TestCase):
             le
             gt
             ge
+            asis("echo HI!")
         """
         tokens = Parser(text).parse()
-        self.assertEqual(len(tokens), 27)
+        self.assertEqual(len(tokens), 28)
 
     def test_parser_error(self):
         self.assertRaises(ParserError, Parser("_main").parse)

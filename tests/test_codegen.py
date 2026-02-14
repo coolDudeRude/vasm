@@ -59,6 +59,31 @@ _init:
         cg = Codegen(tokens)
         self.assertRaises(CodegenError, cg.emit)
 
+    def test_asis_opcode(self):
+        program = r"""
+main:
+    asis("rpn /VM_VERSION load \"Running Version %s\" dbpush dbpush")
+    call sprintf
+    dot
+    hlt
+
+sprintf:
+    asis("rpn dbpop dbpop sprintf1s dbpush")
+    ret
+"""
+        tokens = program_parser.parse(program)
+        self.assertEqual(len(tokens), 8)
+        cg = Codegen(tokens)
+        expected = r"""alias vm.rom.0 "rpn /VM_VERSION load \"Running Version %s\" dbpush dbpush"
+alias vm.rom.1 "call 4"
+alias vm.rom.2 "dot"
+alias vm.rom.3 "hlt"
+alias vm.rom.4 "rpn dbpop dbpop sprintf1s dbpush"
+alias vm.rom.5 "ret"
+"""
+        result = cg.emit()
+        self.assertEqual(result, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
