@@ -61,6 +61,8 @@ class Codegen:
                     )
                 addr = self.symbol_table[oprand.value]
                 self._code.append(f"{opcode} {addr}")
+            elif opcode == "asis":
+                self._code.append(f"{oprand.value}")
             else:
                 self._code.append(f"{opcode} {oprand.value}")
 

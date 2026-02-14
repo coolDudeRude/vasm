@@ -1,5 +1,5 @@
 from parsy import Parser, regex, seq, string, ParseError
-from .tokens import Label, Opcode, Integer, Float, Ident
+from .tokens import Label, Opcode, Integer, Float, Ident, String
 
 
 def literal(word: str) -> Parser:
@@ -25,6 +25,9 @@ colon = string(":")
 whole_number = regex("[0-9]+").desc("integer").map(Integer)
 fractional_number = regex("[0-9]+[.][0-9]+").desc("float").map(Float)
 number = fractional_number | whole_number
+
+# String literal
+string_lit = regex(r'"(.*)?"').desc("string literal").map(lambda r: String(r[1:-1]))
 
 # boolean
 true = literal("true").result(1).map(Integer)
@@ -77,6 +80,11 @@ io_op = seq(
 
 misc = literal("hlt")
 
+asis = seq(
+    literal("asis") << opt_whitespace << string("(") << opt_whitespace,
+    string_lit << opt_whitespace << string(")"),
+)
+
 
 def map_opcode(result):
     if isinstance(result, list):
@@ -85,7 +93,14 @@ def map_opcode(result):
 
 
 opcode = (
-    stack_op | arithemtic_op | logical_op | branch_op | arithemtic_op | io_op | misc
+    stack_op
+    | arithemtic_op
+    | logical_op
+    | branch_op
+    | arithemtic_op
+    | io_op
+    | misc
+    | asis
 ).map(map_opcode)
 
 statement = opt_whitespace >> (label | opcode) << opt_whitespace

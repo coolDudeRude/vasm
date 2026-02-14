@@ -42,6 +42,17 @@ class Float:
         return self.__str__()
 
 
+class String:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return f"String({self.value})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
 class Opcode:
     def __init__(self, opcode: str, oprand=None) -> None:
         self.opcode = opcode
