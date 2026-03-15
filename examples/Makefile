@@ -1,4 +1,4 @@
-# Assmebler
+# Assembler
 AS=vasm
 AFLAGS=
 

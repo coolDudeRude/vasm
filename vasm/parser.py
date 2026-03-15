@@ -1,137 +1,164 @@
-from parsy import Parser, regex, seq, string, ParseError
-from .tokens import Label, Opcode, Integer, Float, Ident, String
+"""Parser frontend for vasm"""
+
+import parsy
+from . import ir
+from . import source
+from .exceptions import ParsingError
 
 
-def literal(word: str) -> Parser:
-    """Parser that only matches words that have line break.
-    For example:
+## Parser Logic
 
-    call = literal("call")  # This will only parse "call" not the "call"
-                            # in "calling". While parsy.string will match
-                            # both, "call" and "call" in "calling", leaving
-                            # behind "ing", which will result in parser error.
-    """
-    return regex(word + r"\b").desc(word)
-
-
-# Primitives
-req_whitespace = regex(r"\s+").desc("whitespace")
-opt_whitespace = regex(r"\s*").desc("whitespace")
-
-ident = regex("[A-Za-z_][A-Za-z_0-9]*").desc("identifier").map(Ident)
-colon = string(":")
-
-# literals
-whole_number = regex("[0-9]+").desc("integer").map(Integer)
-fractional_number = regex("[0-9]+[.][0-9]+").desc("float").map(Float)
-number = fractional_number | whole_number
-
-# String literal
-string_lit = regex(r'"(.*)?"').desc("string literal").map(lambda r: String(r[1:-1]))
-
-# boolean
-true = literal("true").result(1).map(Integer)
-false = literal("false").result(0).map(Integer)
-boolean = true | false
-
-
-label = (ident.map(lambda r: r.value) << colon).map(Label)
-
-stack_op = (
-    seq(literal("push") << req_whitespace, number | boolean)
-    | literal("pop")
-    | literal("dup")
-    | literal("dot")
-)
-
-arithemtic_op = (
-    literal("add")
-    | literal("sub")
-    | literal("mul")
-    | literal("div")
-    | literal("pow")
-    | literal("min")
-    | literal("max")
-)
-
-branch_op = seq(
-    (literal("jmp") | literal("jif") | literal("call")) << req_whitespace, ident
-) | literal("ret")
-
-logical_op = (
-    literal("eq").result("iseq")
-    | literal("ne").result("isne")
-    | literal("lt").result("islt")
-    | literal("le").result("isle")
-    | literal("gt").result("isgt")
-    | literal("ge").result("isge")
-)
-
-io_op = seq(
+# Ignore comments, whitespace and synline markers.
+ignored = (
     (
-        literal("store").result("store_l")
-        | literal("load").result("load_l")
-        | literal("gstore").result("store_g")
-        | literal("gload").result("load_g")
+        (parsy.string(";").desc("comment") | parsy.string("#").desc("directive"))
+        >> parsy.regex(r"[^\n]*")
     )
-    << req_whitespace,
-    ident,
+    | parsy.whitespace.desc("whitespace")
+).many()
+
+
+## Primitives
+identifier = parsy.regex(r"[a-zA-Z_.][a-zA-Z_0-9.]*").desc("identifier")
+string_literal = (
+    parsy.regex(r'"(.*)?"').map(lambda r: ir.String(r[1:-1])).desc("string")
+)
+integer = parsy.regex(r"[-]?[0-9]+").map(lambda i: ir.Number(int(i))).desc("integer")
+decimal = (
+    parsy.regex(r"[-]?[0-9]+[.][0-9]+").map(lambda f: ir.Number(float(f))).desc("float")
+)
+hexadecimal = (
+    parsy.regex(r"0x[0-9a-fA-F]+").map(lambda r: ir.Number(int(r, 16))).desc("hex")
 )
 
-misc = literal("hlt")
-
-asis = seq(
-    literal("asis") << opt_whitespace << string("(") << opt_whitespace,
-    string_lit << opt_whitespace << string(")"),
-)
+colon = parsy.string(":")
 
 
-def map_opcode(result):
-    if isinstance(result, list):
-        return Opcode(result[0], result[1])
-    return Opcode(result)
+def lexeme(p: parsy.Parser) -> parsy.Parser:
+    """Generates a parser that parses the desired elements while ignoring comments,
+    and synline markers"""
+    return p.skip(ignored)
 
 
-opcode = (
-    stack_op
-    | arithemtic_op
-    | logical_op
-    | branch_op
-    | arithemtic_op
-    | io_op
-    | misc
-    | asis
-).map(map_opcode)
-
-statement = opt_whitespace >> (label | opcode) << opt_whitespace
-program_parser = statement.mark().many()
+def keyword(string: str) -> parsy.Parser:
+    """Generates parser that parses literal words"""
+    return parsy.regex(string + r"\b").desc(string)
 
 
-class ParserError(Exception):
-    pass
+argument = lexeme(decimal | integer | hexadecimal | identifier.map(ir.Symbol))
+
+opcode_without_arguments = {
+    "pop",
+    "dup",
+    "dot",
+    "add",
+    "mul",
+    "div",
+    "sub",
+    "min",
+    "max",
+    "iseq",
+    "isne",
+    "islt",
+    "isle",
+    "isgt",
+    "isge",
+    "ret",
+    "hlt",
+}
+
+opcode_with_one_argument = {
+    "push",
+    "jmp",
+    "jif",
+    "call",
+    "store_l",
+    "load_l",
+    "store_g",
+    "load_g",
+}
 
 
-class Parser:
-    def __init__(self, text):
-        self.text = text
+opcode_mapping = {
+    "load": "load_l",
+    "store": "store_l",
+    "gload": "load_g",
+    "gstore": "store_g",
+    "eq": "iseq",
+    "ne": "isne",
+    "lt": "islt",
+    "le": "isle",
+    "gt": "isgt",
+    "ge": "isge",
+    "psh": "push",
+    "goto": "jmp",
+}
 
-    def get_line_info(self, end=int):
-        lines = self.text[:end].split("\n")
-        line_num = len(lines)
-        line = lines[-1]
-        line_info = " {row:>{padding}}|{line}".format(
-            row=line_num, padding=len(str(line_num)), line=line
+token = ir.Symbol | ir.Instruction
+markers = list[ir.SourceMarker]
+
+
+def add_metadata(
+    index: int, tok: token, text: str, source_map: markers, filename: str
+) -> token:
+    file, row, col = source.get_original_location(text, source_map, index)
+
+    meta = ir.Metadata(row=row, column=col, file=file or filename)
+    tok.metadata = meta
+    return tok
+
+
+def create_parser(
+    text: str, source_map: list[ir.SourceMarker], filename: str
+) -> parsy.Parser:
+
+    def with_meta(p: parsy.Parser) -> parsy.Parser:
+        return parsy.seq(parsy.index, p).map(
+            lambda data: add_metadata(
+                data[0],
+                data[1],
+                text,
+                source_map,
+                filename,
+            )
         )
-        pointer = (" " * len(line_info)) + "^"
-        return line_num, f"{line_info}\n{pointer}"
 
-    def parse(self):
-        try:
-            tokens = program_parser.parse(self.text)
-        except ParseError as e:
-            end = e.args[2]
-            line_num, line_info = self.get_line_info(end)
-            expected = ",".join(map(lambda r: f"'{r}'", e.args[0]))
-            raise ParserError(f"vasm: expected {expected} at {line_num}\n{line_info}")
+    def get_instruction(text: str):
+        """Parse instruction and resolve it's alias mapping"""
+        opcode_val = opcode_mapping.get(text, text)
 
+        if opcode_val in opcode_with_one_argument:
+            return with_meta(argument).map(
+                lambda args: ir.Instruction(op=opcode_val, args=args)
+            )
+
+        if opcode_val in opcode_without_arguments:
+            return parsy.success(ir.Instruction(op=opcode_val))
+
+        return parsy.fail(f"Invalid opcode {opcode_val}")
+
+    word = parsy.regex(r"[a-z_]+")
+
+    opcode = lexeme(word).bind(get_instruction)
+
+    instruction = with_meta(opcode.desc("opcode"))
+
+    label = with_meta(lexeme(identifier.skip(colon).map(ir.Symbol).desc("label")))
+
+    statement = label | instruction
+
+    return ignored >> statement.many()
+
+
+def parse(
+    text: str, source_map: list[ir.SourceMarker], filename: str = "noname"
+) -> list:
+    """Parses the input string and generates tokens"""
+    program_parser = create_parser(text, source_map, filename)
+    try:
+        tokens = program_parser.parse(text)
         return tokens
+    except parsy.ParseError as e:
+        file, row, column = source.get_original_location(text, source_map, e.index)
+        metadata = ir.Metadata(row, column, file)
+        raise ParsingError(f"expected {', '.join(e.expected)}", metadata) from e
