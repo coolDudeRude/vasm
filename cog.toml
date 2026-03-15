@@ -28,7 +28,3 @@ authors = [
   { signature = "Jiān", username = "coolDudeRude" },
   { signature = "Jian", username = "coolDudeRude" },
 ]
-
-[bump_profiles]
-
-[packages]
