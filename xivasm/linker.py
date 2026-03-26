@@ -1,4 +1,4 @@
-"""Linker for vasm"""
+"""Linker for xivasm"""
 
 from . import ir
 from .exceptions import LinkingError

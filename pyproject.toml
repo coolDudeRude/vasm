@@ -1,5 +1,5 @@
 [project]
-name = "vasm"
+name = "xivasm"
 version = "1.2.0"
 description = "Assembler for stackvm-xonotic"
 readme = "README.md"
@@ -17,11 +17,14 @@ classifiers = [
 ]
 
 [project.urls]
-"Source Code" = "https://github.com/coolDudeRude/vasm"
-"Bug Tracker" = "https://github.com/coolDudeRude/vasm/issues"
+"Source Code" = "https://github.com/coolDudeRude/xivasm"
+"Bug Tracker" = "https://github.com/coolDudeRude/xivasm/issues"
 
 [project.scripts]
-vasm = "vasm.__main__:main"
+xivasm = "xivasm.__main__:main"
+
+[tool.setuptools.package-data]
+xivasm = ["data/*.m4"]
 
 [build-system]
 requires = ["setuptools"]

@@ -1,5 +1,5 @@
 # Assembler
-AS=vasm
+AS=xivasm
 AFLAGS=
 
 all: factorial.cfg sprintf.cfg

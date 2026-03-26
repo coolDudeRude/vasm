@@ -1,4 +1,4 @@
-"""Source mapping logic for vasm"""
+"""Source mapping logic for xivasm"""
 
 import re
 from . import ir

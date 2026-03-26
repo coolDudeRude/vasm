@@ -7,7 +7,7 @@ from .resolver import Resolver
 from .linker import Linker
 
 try:
-    __version__ = version("vasm")
+    __version__ = version("xivasm")
 except PackageNotFoundError:
     __version__ = "0.0.0-dev"
 

@@ -1,4 +1,4 @@
-"""Parser frontend for vasm"""
+"""Parser frontend for xivasm"""
 
 import parsy
 from . import ir

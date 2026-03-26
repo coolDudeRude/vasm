@@ -1,4 +1,4 @@
-"""GNU m4 wrapper for vasm preprocessor frontend"""
+"""GNU m4 wrapper for xivasm preprocessor frontend"""
 
 import shutil
 import pathlib
