@@ -59,7 +59,7 @@ class M4:
         """Executes the m4 binary with passed arguments, if input_string is provided,
         m4 will read from stdin and process the string"""
 
-        if input_string is not None and arguments[-1] != "-":
+        if input_string is not None and "-" not in arguments:
             arguments.append("-")
 
         try:
