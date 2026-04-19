@@ -90,9 +90,8 @@ def main():
 
     if arguments.preprocess:
         for file, source in zip(arguments.file, sources):
-            print(file)
             print(source)
-            return 0
+        return 0
 
     # Generate synline map
     source_maps = []
