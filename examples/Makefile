@@ -2,7 +2,7 @@
 AS=xivasm
 AFLAGS=
 
-all: factorial.cfg sprintf.cfg
+all: factorial.cfg sprintf.cfg hello.cfg
 
 
 factorial.cfg: factorial.s
@@ -10,6 +10,9 @@ factorial.cfg: factorial.s
 
 sprintf.cfg: sprintf.s
 	$(AS) $(AFLAGS) sprintf.s -o sprintf.cfg
+
+hello.cfg: hello.s
+	$(AS) $(AFLAGS) hello.s -o hello.cfg
 
 .PHONY: clean
 clean:
