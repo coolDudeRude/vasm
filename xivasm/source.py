@@ -10,12 +10,15 @@ def create_synline_map(text: str) -> list[ir.SourceMarker]:
     pattern = re.compile(r'^#line (\d+)( "([^"]+)")?', re.MULTILINE)
 
     source_map = []
+    filename = ""
 
     for match in pattern.finditer(text):
+        if match.group(2):
+            filename = match.group(2).strip(' "')
         marker = ir.SourceMarker(
             index=match.start(),
             original_line=int(match.group(1)),
-            original_file=match.group(2).strip(' "'),
+            original_file=filename,
         )
         source_map.append(marker)
 
@@ -51,4 +54,4 @@ def get_original_location(
         last_newline_pos = text_segment.rfind("\n")
         real_col = len(text_segment) - last_newline_pos - 1
 
-    return active_marker.original_file, real_line, real_col
+    return active_marker.original_file, real_line - 1, real_col

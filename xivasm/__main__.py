@@ -10,18 +10,42 @@ def parse_arguments(argument_string: Optional[str] = None) -> Namespace:
     """Parse commandline arguments."""
     arg_parser = ArgumentParser(description="Assembler for stackvm-xonotic")
     arg_parser.add_argument(
-        "file", nargs="+", help="stackvm-xonotic program source file", metavar="file"
+        "file", nargs="+", help="stackvm-xonotic program source file", metavar="FILE"
     )
     arg_parser.add_argument(
         "-o",
         "--output",
         dest="output",
         help="output filename of the assembled code",
-        metavar="file",
+        metavar="FILE",
         default="a.cfg",
     )
     arg_parser.add_argument(
         "-v", "--version", action="version", version="%(prog)s " + xivasm.__version__
+    )
+    arg_parser.add_argument(
+        "-P",
+        "--preprocess",
+        action="store_true",
+        default=False,
+        help="Only preprocess the input file.",
+    )
+    arg_parser.add_argument(
+        "-D",
+        "--mdef",
+        dest="macros",
+        action="append",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        help="define macros for m4 (e.g ... -D SPEED 200)",
+    )
+    arg_parser.add_argument(
+        "-I",
+        "--include",
+        dest="includes",
+        action="append",
+        metavar="PATH",
+        help="directories which m4 should search for includes",
     )
 
     if argument_string is not None:
@@ -33,7 +57,11 @@ def main():
     arguments = parse_arguments()
 
     # The file executed before anything else is preprocessed
-    directives = files("xivasm") / "data/directives.m4"
+    library_path = files("xivasm") / "data"
+    directives = library_path / "directives.m4"
+
+    includes = arguments.includes if arguments.includes else []
+    macros = dict(arguments.macros) if arguments.macros else {}
 
     # First preprocess the file
     preprocessor = xivasm.M4(
@@ -44,16 +72,27 @@ def main():
     preprocessor.add_argument("-Um4_syscmd")  # disable system program invocation.
     preprocessor.add_argument("-Um4_esyscmd")  # disable system program invocation.
 
+    macros["__ASM_VERSION__"] = xivasm.__version__
+    macros["__M4_VERSION__"] = preprocessor.get_version()
+
     sources = []
     try:
         for file in arguments.file:
-            sources.append(preprocessor.process_file(file))
+            sources.append(
+                preprocessor.process_file(file, macros=macros, includes=includes)
+            )
     except FileNotFoundError as e:
         print("xivasm: " + str(e))
         return xivasm.exceptions.PREPROCESSOR_ERROR
     except RuntimeError as e:
         print("xivasm: " + str(e))
         return xivasm.exceptions.PREPROCESSOR_ERROR
+
+    if arguments.preprocess:
+        for file, source in zip(arguments.file, sources):
+            print(file)
+            print(source)
+            return 0
 
     # Generate synline map
     source_maps = []
@@ -88,7 +127,6 @@ def main():
         linker = xivasm.Linker(units)
         linker.generate_code()
         linker.write_to_file(arguments.output)
-        print(f"xivasm: program written to '{arguments.output}'")
     except xivasm.exceptions.LinkingError as e:
         print(f"xivasm: {str(e)}")
         return xivasm.exceptions.LINKER_ERROR

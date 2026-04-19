@@ -44,9 +44,14 @@ class Linker:
             for instruction in unit.instructions:
                 op = instruction.op
                 arg = instruction.args
-                if op in self.BRANCH_INST:
+                # Allow push instruction access to the symbol table?
+                if op in self.BRANCH_INST or (
+                    op == "push" and isinstance(arg, ir.Symbol)
+                ):
                     target_address = self._get_label_address(arg)
                     code = f"{op} {target_address}"
+                elif op in ("asis"):
+                    code = arg.value
                 elif isinstance(arg, ir.Symbol):
                     code = f"{op} {arg.name}"
                 else:
@@ -55,6 +60,8 @@ class Linker:
                 self.code.append(code)
 
     def write_to_file(self, file: str) -> None:
+        # TODO: split the file into chunks and add a loading
+        # script if the size exceeds 655,360 bytes
         with open(file, "w", encoding="utf-8") as output:
             program = ""
             for index, code in enumerate(self.code):

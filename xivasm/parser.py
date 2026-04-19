@@ -6,6 +6,10 @@ from . import source
 from .exceptions import ParsingError
 
 
+Token = ir.Symbol | ir.Instruction
+Tokens = list[Token]
+Markers = list[ir.SourceMarker]
+
 ## Parser Logic
 
 # Ignore comments, whitespace and synline markers.
@@ -19,7 +23,7 @@ ignored = (
 
 
 ## Primitives
-identifier = parsy.regex(r"[a-zA-Z_.][a-zA-Z_0-9.]*").desc("identifier")
+identifier = parsy.regex(r"[a-zA-Z_.][a-zA-Z_0-9.]*").map(ir.Symbol).desc("identifier")
 string_literal = (
     parsy.regex(r'"(.*)?"').map(lambda r: ir.String(r[1:-1])).desc("string")
 )
@@ -40,23 +44,19 @@ def lexeme(p: parsy.Parser) -> parsy.Parser:
     return p.skip(ignored)
 
 
-def keyword(string: str) -> parsy.Parser:
-    """Generates parser that parses literal words"""
-    return parsy.regex(string + r"\b").desc(string)
-
-
-argument = lexeme(decimal | integer | hexadecimal | identifier.map(ir.Symbol))
-
 opcode_without_arguments = {
     "pop",
     "dup",
     "dot",
+    "exch",
     "add",
     "mul",
     "div",
     "sub",
     "min",
     "max",
+    "pow",
+    "mod",
     "iseq",
     "isne",
     "islt",
@@ -65,17 +65,65 @@ opcode_without_arguments = {
     "isge",
     "ret",
     "hlt",
+    "and",
+    "or",
+    "xor",
+    "not",
+    "bitand",
+    "bitor",
+    "bitxor",
+    "bitnot",
+    "neg",
+    "sgn",
+    "abs",
+    "rand",
+    "floor",
+    "ceil",
+    "exp",
+    "log",
+    "sin",
+    "cos",
+    "bound",
+    "when",
+    "union",
+    "intersection",
+    "difference",
+    "shuffle",
+    "fmt_localtime",
+    "fmt_gmtime",
+    "dp_time",
+    "hash_md4",
+    "hash_sha256",
+    "crc16",
+    "fmt_sprintf",
+    "fexists",
+    "assert_fexists",
+    "eval",
+    "store_vfs",
+    "load_vfs",
+    "call_vfs",
+    "cstore_vfs",
+    "cload_vfs",
 }
 
+arg_num = lexeme(hexadecimal | decimal | integer)
+arg_id = lexeme(identifier)
+arg_str = lexeme(string_literal)
+
+arg_num_or_id = arg_num | arg_id
+
 opcode_with_one_argument = {
-    "push",
-    "jmp",
-    "jif",
-    "call",
-    "store_l",
-    "load_l",
-    "store_g",
-    "load_g",
+    "push": arg_num_or_id,
+    "jmp": arg_id,
+    "jif": arg_id,
+    "call": arg_id,
+    "store_l": arg_id,
+    "load_l": arg_id,
+    "store_g": arg_id,
+    "load_g": arg_id,
+    "asis": arg_str,
+    "cload": arg_id,
+    "cstore": arg_id,
 }
 
 
@@ -94,23 +142,17 @@ opcode_mapping = {
     "goto": "jmp",
 }
 
-token = ir.Symbol | ir.Instruction
-markers = list[ir.SourceMarker]
-
 
 def add_metadata(
-    index: int, tok: token, text: str, source_map: markers, filename: str
-) -> token:
+    index: int, tok: Token, text: str, source_map: Markers, filename: str
+) -> Token:
     file, row, col = source.get_original_location(text, source_map, index)
-
     meta = ir.Metadata(row=row, column=col, file=file or filename)
     tok.metadata = meta
     return tok
 
 
-def create_parser(
-    text: str, source_map: list[ir.SourceMarker], filename: str
-) -> parsy.Parser:
+def create_parser(text: str, source_map: Markers, filename: str) -> parsy.Parser:
 
     def with_meta(p: parsy.Parser) -> parsy.Parser:
         return parsy.seq(parsy.index, p).map(
@@ -128,7 +170,8 @@ def create_parser(
         opcode_val = opcode_mapping.get(text, text)
 
         if opcode_val in opcode_with_one_argument:
-            return with_meta(argument).map(
+            arg = opcode_with_one_argument.get(opcode_val)
+            return with_meta(arg).map(
                 lambda args: ir.Instruction(op=opcode_val, args=args)
             )
 
@@ -137,22 +180,16 @@ def create_parser(
 
         return parsy.fail(f"Invalid opcode {opcode_val}")
 
-    word = parsy.regex(r"[a-z_]+")
-
+    word = parsy.regex(r"[a-z_][a-z_0-9]+")
     opcode = lexeme(word).bind(get_instruction)
-
     instruction = with_meta(opcode.desc("opcode"))
-
-    label = with_meta(lexeme(identifier.skip(colon).map(ir.Symbol).desc("label")))
-
+    label = with_meta(lexeme(identifier.skip(colon).desc("label")))
     statement = label | instruction
 
     return ignored >> statement.many()
 
 
-def parse(
-    text: str, source_map: list[ir.SourceMarker], filename: str = "noname"
-) -> list:
+def parse(text: str, source_map: Markers, filename: str = "noname") -> Tokens:
     """Parses the input string and generates tokens"""
     program_parser = create_parser(text, source_map, filename)
     try:

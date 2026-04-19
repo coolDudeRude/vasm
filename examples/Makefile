@@ -13,5 +13,5 @@ sprintf.cfg: sprintf.s
 
 .PHONY: clean
 clean:
-	rm *.cfg
+	rm -f *.cfg
 
